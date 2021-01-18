@@ -1,0 +1,108 @@
+@startuml
+actor external_user
+cloud homelab {
+	node verizon_router
+	node wavlink_router 
+	node vpn.home {
+		frame DNS {
+			frame pihole
+			frame funkyd
+		}
+
+		frame gateway {
+			frame nginx {
+				frame services {
+					frame blog.moistgarbage.info
+					frame chat.moistgarbage.info
+					frame mastodon.moistgarbage.info
+
+					frame blog.kuperman.me
+					frame update_dns [
+						sets external dns for all domains
+					]
+				}
+
+				frame site [
+					site
+					---
+					https://kuperman.me
+					https://moistgarbage.info
+				]
+			}
+
+			frame vpn {
+				frame pivpn {
+					file vpn.kupercloud.com	
+				}
+			}
+		}
+	}
+
+	node rpi4a {
+		frame rpi4a_services {
+			frame matrix
+			frame matrix_registration
+			frame mastodon
+			frame feed2toot
+			frame writefreely
+		}
+	}
+
+	node richard {
+	 	frame monitoring {
+			frame prometheus
+			frame grafana 
+			frame covid_tracker
+		}
+		frame mautrix_telegram {
+			actor mautrix_telegram_bot
+		}
+	}
+	actor internal_user
+}
+
+cloud AWS
+cloud google_dns
+cloud cloudflare_dns
+cloud quad9_dns
+cloud telegram
+
+verizon_router -- wavlink_router : LAN bridge
+verizon_router -- gateway : static 192.168.1.4
+wavlink_router -- rpi4a : wifi/dhcp
+
+mastodon.moistgarbage.info --> mastodon : port 3000,4000
+
+chat.moistgarbage.info -d-> matrix : port 8008
+chat.moistgarbage.info -d-> matrix_registration : /register, port 5000
+feed2toot -[#blue]r-> chat.moistgarbage.info : internet
+
+blog.moistgarbage.info --> blog.kuperman.me : redirect
+blog.kuperman.me --> writefreely : port 9000
+
+prometheus --> matrix : monitoring
+prometheus -- grafana : visualizations
+prometheus --> covid_tracker :monitoring
+
+matrix -- mautrix_telegram_bot
+mautrix_telegram_bot --> telegram
+
+update_dns --> AWS : cron
+
+internal_user --> prometheus : port 9090
+internal_user --> grafana : port 3000
+
+pihole --> funkyd : sole upstream, no tls
+funkyd --> cloudflare_dns : tls
+funkyd --> google_dns: tls
+funkyd --> quad9_dns : tls
+internal_user --> pihole : unencrypted DNS
+verizon_router --> pihole :DHCP and DNS
+
+external_user -d-> verizon_router
+
+vpn.home -[hidden]-> rpi4a
+vpn.home -down-> rpi4a
+skinparam linetype ortho
+skinparam defaultFontSize 25
+@enduml
